@@ -1,0 +1,22 @@
+# ---- Raw inputs (kept local; never committed) ----
+data/raw/
+
+# ---- Large rendered images (hosted separately via jsDelivr) ----
+data/processed/sashimi/
+
+# ---- Large genomics inputs (in case they land anywhere) ----
+*.bam
+*.bam.bai
+*.gtf
+*.gtf.gz
+
+# ---- Python / OS cruft ----
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# NOTE: data/processed/*.parquet and *.csv (incl. sashimi_manifest.csv) ARE
+# committed — the app needs them at runtime (~10 MB total).
