@@ -13,6 +13,8 @@ data/processed/sashimi/
 # ---- Local dev / tooling ----
 .claude/
 logs/
+# personal maintenance cheat-sheet, kept local (not published)
+docs/UPDATE_GUIDE.html
 
 # ---- Python / OS cruft ----
 __pycache__/
