@@ -10,6 +10,10 @@ data/processed/sashimi/
 *.gtf
 *.gtf.gz
 
+# ---- Local dev / tooling ----
+.claude/
+logs/
+
 # ---- Python / OS cruft ----
 __pycache__/
 *.pyc

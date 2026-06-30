@@ -63,9 +63,12 @@ CardioIsoMap/
 │   └── requirements.txt        # app deps (for Streamlit Cloud deploy)
 ├── code/
 │   ├── 01_build_tables.py      # builds isoforms/genes/gene_index
-│   ├── 02_build_structures.py  # parses GTF -> exons table
+│   ├── 02_build_structures.py  # parses GTF -> exons table (PacBio isoforms)
 │   ├── 03_render_sashimi.R     # batch Gviz coverage/sashimi PNGs
-│   └── 04_rebuild_manifest.py  # rebuild sashimi_manifest.csv from PNGs
+│   ├── 04_rebuild_manifest.py  # rebuild sashimi_manifest.csv from PNGs
+│   ├── 05_build_gencode_exons.py # GENCODE v43 reference exon table
+│   ├── 06_build_magnet_tpm.py   # MAGNET short-read isoform TPM (novel isoforms)
+│   └── 07_build_magnet_known.py # MAGNET TPM for FSM/ISM via matched ENST
 ├── data/
 │   ├── raw/                    # original uploaded files (do not edit)
 │   │   ├── all6_v2_classification_keep_decision.csv
@@ -112,11 +115,89 @@ python3 -m streamlit run app/app.py     # opens http://localhost:8501
   `cpm_*` per sample, `usage_*` per sample, per-phenotype means (`count_/cpm_/usage_{NFH,DCM,IHD}`),
   `usage_overall`, and novel-verification columns (junction/short-read/DET).
 - `genes.parquet`: gene, chrom, strand, n_isoforms, n_keep, n_novel, dominant_isoform, n_DET_sig.
-- `exons.parquet`: gene, transcript_id, chrom, strand, start, end (one row per exon).
+- `exons.parquet`: gene, transcript_id, chrom, strand, start, end (one row per exon, PacBio).
+- `gencode_exons.parquet`: gene, transcript_id, transcript_name, chrom, strand, start, end —
+  GENCODE v43 reference exon models (133k transcripts, 11,922 genes) for the Structure tab's
+  optional reference overlay. Built by `code/05_build_gencode_exons.py` from
+  `../gene_example/gencode_v43_plus_novel_lr_may12.gtf.gz` (ENST rows only, filtered to our genes).
 
 ---
 
 ## Changelog
+
+### 2026-06-30 — Polish: novel count fix, MAGNET methods, viz tweaks
+- **Fixed "Novel isoforms (total)" on the landing page.** It had used the `is_novel` flag (the
+  curated `novel_lr_18637` set, all keepers → total == kept == 18,637, which is wrong for a
+  "total"). Now defined as **ISM + NIC + NNC** structural categories: **31,777 total / 18,030
+  kept**. The verified novel_lr count (18,637) is surfaced in the "kept" tooltip.
+- **MAGNET methods note** added to the Expression-tab caption + README + DATA_DICTIONARY:
+  "re-quantified with a Salmon decoy-aware pipeline against a merged reference (GENCODE v43 +
+  18,637 novel long-read isoforms)."
+- MAGNET box plots: show **every sample as a jittered dot** (`points="all"`, size 6) instead of
+  outlier markers.
+- Unified the structural-category palette: Structure figure now reuses the overview
+  `PIE_CAT_COLORS` (single source of truth). Overview phenotype colors → `#ef767a/#456990/#49beaa`.
+- Larger fonts (16pt base / 15pt ticks) on landing, overview, and expression charts; landing
+  category chart switched to a before→after **overlay** (kept nested in all-isoforms).
+- Structure figure made smaller (fits when expanded). README features/tab list refreshed; docs
+  note that the Sashimi build steps are now optional/legacy.
+
+### 2026-06-29 (cont.) — Tab reorder, drop Sashimi, side-by-side Expression
+- Per-gene tabs reordered to **Overview · Structure · Isoforms table · Expression · Novel
+  evidence**; the **Coverage / Sashimi tab was removed** from the app. (The render script
+  `03_render_sashimi.R`, the PNGs and manifest still exist on disk, just not surfaced in the UI.)
+  → This also removes the need for the jsDelivr/figures-repo CDN at deploy time; the app is now
+  a single small repo again. (`IMG_BASE`/sashimi helpers left in code, unused.)
+- Expression tab is now **two columns**: long-read isoform-usage (left) vs MAGNET short-read
+  TPM box plots (right), instead of stacked top/bottom.
+
+### 2026-06-29 (cont.) — Richer Isoforms-table columns
+- Replaced the per-phenotype CPM columns in the Isoforms-table tab with informative SQANTI3
+  classification fields: `associated_transcript`, `ref_exons`, `ORF_length`, `predicted_NMD`,
+  `all_canonical`, `RTS_stage`, `within_CAGE_peak`, `polyA_motif_found`, `pct_junct_supported`,
+  `ML_filter` (kept identity/structure/coding/abundance basics). Added `st.column_config`
+  header tooltips + formatting (junc % , usage 3dp). All fields already present in
+  isoforms.parquet — no rebuild. Per-sample counts/CPM/DET evidence remain in the CSV download
+  and Novel-evidence tab.
+
+### 2026-06-29 (cont.) — Replaced LR heatmap with isoform-usage stacked bars
+- User disliked the long-read expression heatmap. Replaced it with **stacked horizontal usage
+  bars** (`usage_stack_figure`): one 100%-bar per phenotype (or per sample); segments = isoforms
+  sized by share of the gene's reads, so isoform switching across NFH/DCM/IHD is visible at a
+  glance. Top-N isoforms colored distinctly, the rest lumped into grey "Other"; Per-phenotype /
+  Per-sample toggle + N slider. The original CPM/count/usage heatmap is retained inside a
+  collapsible "Show raw expression matrix" expander (info kept, but out of the way). Verified
+  on MYH7 (dominant FSM ~90% across all groups).
+
+### 2026-06-29 (cont.) — MAGNET box plots in Expression tab
+- Added MAGnet short-read isoform expression to the Expression tab as **box plots** (per
+  isoform, split by disease group), above the existing long-read heatmap.
+- `code/06_build_magnet_tpm.py` → `data/processed/magnet_isoform_tpm.parquet` (18,637 novel
+  PB isoforms × 366 SRA samples, float32, 21 MB) + `magnet_samples.csv` (Run→etiology).
+  Source: `Magnet_DTE/salmon_D_may12_transcript_tpm_matrix.csv` (salmon index = GENCODE v43 +
+  novel-LR, so only the 18,637 novel isoforms have a PB row — known isoforms are absent).
+  Groups from `SraRunTable.xls` `etiology`: DCM 166 · Non-Failing 162 · HCM 27 · PPCM 6.
+- App: Expression tab box plot with disease-group multiselect (default Non-Failing + DCM),
+  max-isoforms slider, log-y toggle; isoforms ranked by mean TPM. Verified live on MYH7.
+- **Extended MAGNET to KNOWN isoforms** (`code/07_build_magnet_known.py`): FSM/ISM isoforms
+  have no PB salmon row, but SQANTI's `associated_transcript` gives their matched ENST, and the
+  salmon index contains every GENCODE ENST. Pulled those ENST rows →
+  `magnet_enst_tpm.parquet` (18,396 unique ENSTs × 366, float32, 31 MB) +
+  `isoform_ref_map.csv` (35,671 FSM/ISM isoforms → ref ENST, 1.6 MB). The box plot now unions
+  novel (own row) + FSM/ISM (matched-ENST TPM; exact for FSM, approximate for ISM), with the
+  source shown on hover. MYH7 coverage 57→71; NPPA now plots its FSM isoform and shows the
+  expected ~10× DCM up-regulation.
+
+### 2026-06-29 — Overview chart + GENCODE reference in Structure tab
+- **Overview "Isoforms by structural category" chart** redrawn: replaced the stretched
+  `st.bar_chart` with a compact **horizontal grouped Plotly bar** (All vs After-filtering,
+  sorted, fixed height) — the old vertical chart looked too wide.
+- **Structure tab — optional GENCODE v43 reference overlay.** Added
+  `code/05_build_gencode_exons.py` → `data/processed/gencode_exons.parquet` (ENST exon models
+  from the combined GTF, filtered to our gene symbols; 1.08M exons / 133k transcripts /
+  11,922 genes / 8.3 MB). A "Include GENCODE v43 reference transcripts" toggle appends those
+  models (grey, labeled by transcript_name e.g. `MYH7-201`) below the PacBio isoforms, with a
+  "GENCODE v43" legend entry. Verified MYH7 reference aligns with its FSM isoform.
 
 ### 2026-06-08 — Deployment prep (GitHub + Streamlit Cloud + jsDelivr CDN)
 - Decision: host the app on **Streamlit Community Cloud** (small app repo) and the **1.3 GB of

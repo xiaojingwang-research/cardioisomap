@@ -51,3 +51,20 @@ Key columns used by the app. (SQANTI3 classification schema + custom keep/verifi
 | `sr_mean_DCM`, `sr_mean_NFD`, `sr_expressed` | Short-read mean by condition |
 | `DET_log2FC`, `DET_padj`, `DET_significant`, `DET_direction` | Differential transcript usage/expression (DCM vs NFD) |
 | `has_novel_region`, `has_novel_junction`, `novel_feature` | Type of novelty |
+
+## Short-read expression — MAGNET (Expression tab box plots)
+The independent **MAGnet** cohort (366 human-heart RNA-seq samples) was **re-quantified with a
+Salmon decoy-aware pipeline against a merged reference (GENCODE v43 + the 18,637 novel long-read
+isoforms)**. Built by `code/06_build_magnet_tpm.py` (novel isoforms) and
+`code/07_build_magnet_known.py` (known FSM/ISM via their matched ENST).
+
+| File | Columns | Meaning |
+|------|---------|---------|
+| `data/processed/magnet_isoform_tpm.parquet` | `transcript_id` + 366 SRR sample cols | Per-sample TPM for the 18,637 **novel** PacBio isoforms (own salmon row) |
+| `data/processed/magnet_enst_tpm.parquet` | `ref_enst` + 366 SRR sample cols | Per-sample TPM for the GENCODE ENSTs matched by **FSM/ISM** isoforms |
+| `data/processed/isoform_ref_map.csv` | `isoform, ref_enst, structural_category` | Known isoform → matched reference ENST (`associated_transcript`) |
+| `data/processed/magnet_samples.csv` | `Run, etiology` | Sample → disease group: Non-Failing 162 · DCM 166 · HCM 27 · PPCM 6 |
+
+In the app a novel isoform uses its own salmon row; a known FSM/ISM isoform uses the TPM of its
+matched GENCODE transcript — **exact for FSM**, **approximate for ISM** (a truncated match
+inherits the full transcript's abundance). Hover a box to see which source was used.
