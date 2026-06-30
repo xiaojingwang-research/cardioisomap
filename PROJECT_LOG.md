@@ -125,6 +125,14 @@ python3 -m streamlit run app/app.py     # opens http://localhost:8501
 
 ## Changelog
 
+### 2026-06-30 (cont.) — Deployed + sashimi-code cleanup
+- **Deployed** to Streamlit Community Cloud from a single public repo
+  `github.com/xiaojingwang-research/cardioisomap` (~73 MB, app/code/docs + processed parquet/CSV).
+- Removed now-dead Coverage/Sashimi plumbing from `app/app.py`: `SASHIMI_DIR`, `safe_name()`,
+  `_img_base()` / `IMG_BASE`, `available_sashimi()`, and the unused `os`/`re` imports.
+- Simplified `docs/DEPLOY.md` to the single-repo path (no CDN / figures-repo / secrets).
+  (Sashimi render scripts + PNGs remain on disk, unused.)
+
 ### 2026-06-30 — Polish: novel count fix, MAGNET methods, viz tweaks
 - **Fixed "Novel isoforms (total)" on the landing page.** It had used the `is_novel` flag (the
   curated `novel_lr_18637` set, all keepers → total == kept == 18,637, which is wrong for a

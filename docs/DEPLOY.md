@@ -1,54 +1,39 @@
 # Deployment — CardioIsoMap
 
-Two repos: a small **app repo** (~11 MB, deployed by Streamlit) and a large **figures repo**
-(~1.3 GB of PNGs, served free via jsDelivr). `gh` is not installed here, so the commands below
-use plain `git` + the GitHub website to create repos. Replace `<USER>` with your GitHub username.
+Single public repo (~73 MB: app code + processed parquet/CSV tables), deployed on
+**Streamlit Community Cloud**. No CDN, no second repo, no secrets — the Coverage/Sashimi
+tab (the only thing that needed hosted images) has been removed.
 
-## A. App repo (code + processed tables)
-The `.gitignore` already excludes raw data and the 1.3 GB `data/processed/sashimi/` images.
+**Live app:** https://github.com/xiaojingwang-research/cardioisomap → deployed via share.streamlit.io
+
+## A. Push the repo to GitHub
+`.gitignore` excludes raw data, the (legacy) `data/processed/sashimi/` PNGs, and local tooling;
+the `data/processed/*.parquet` + `*.csv` tables ARE committed (the app needs them at runtime).
 ```bash
 cd "/Users/wangx11/Library/CloudStorage/Box-Box/000/LR6_may11/CardioIsoMap"
-git init
-git add app code docs data/processed/*.parquet \
-        data/processed/gene_index.csv data/processed/gene_regions.csv \
-        data/processed/sashimi_manifest.csv \
-        README.md PROJECT_LOG.md .gitignore
-git commit -m "CardioIsoMap app + processed tables"
-# create an EMPTY repo named 'cardioisomap' on github.com, then:
-git branch -M main
-git remote add origin https://github.com/<USER>/cardioisomap.git
-git push -u origin main
+git add -A
+git commit -m "your message"
+git push                       # to https://github.com/xiaojingwang-research/cardioisomap
 ```
+Auth over HTTPS uses a **Personal Access Token** (Settings → Developer settings → Tokens
+(classic) → scope `repo`) as the password, not your account password. Run once to cache it:
+`git config --global credential.helper osxkeychain`.
 
-## B. Figures repo (the 1.3 GB of sashimi PNGs)
+## B. Deploy on Streamlit Community Cloud
+1. https://share.streamlit.io → sign in with GitHub → **Create app** → *Deploy a public app from GitHub*.
+2. **Repository** `xiaojingwang-research/cardioisomap` · **Branch** `main` · **Main file** `app/app.py`.
+3. (optional) set a custom subdomain, then **Deploy**.
+4. Live at `https://<name>.streamlit.app`. No secrets needed.
+
+## C. Updating the live app
+Streamlit watches the repo — every push to `main` auto-redeploys within ~1 minute:
 ```bash
-cd "/Users/wangx11/Library/CloudStorage/Box-Box/000/LR6_may11/CardioIsoMap/data/processed"
-mkdir -p /tmp/cardioisomap-figures && cp -R sashimi /tmp/cardioisomap-figures/
-cd /tmp/cardioisomap-figures
-git init && git add sashimi && git commit -m "per-gene coverage/sashimi PNGs"
-git branch -M main
-git remote add origin https://github.com/<USER>/cardioisomap-figures.git
-git push -u origin main      # one-time ~1.3 GB upload
-```
-jsDelivr then serves them at:
-`https://cdn.jsdelivr.net/gh/<USER>/cardioisomap-figures@main/sashimi/<gene>.png`
-
-Sanity check after push:
-```bash
-curl -I "https://cdn.jsdelivr.net/gh/<USER>/cardioisomap-figures@main/sashimi/MYOM2.png"   # expect HTTP/2 200
+git add -A && git commit -m "..." && git push
 ```
 
-## C. Deploy on Streamlit Community Cloud
-1. https://share.streamlit.io → sign in with GitHub → **New app**.
-2. Repo `cardioisomap`, branch `main`, main file `app/app.py`.
-3. **Advanced settings → Secrets**, paste:
-   ```toml
-   IMG_BASE = "https://cdn.jsdelivr.net/gh/<USER>/cardioisomap-figures@main/sashimi"
-   ```
-4. Deploy → public URL `https://<name>.streamlit.app`.
-
-Notes:
-- For immutable image URLs, pin a tag/commit instead of `@main` (e.g. `@v1`) in `IMG_BASE`.
-- If `IMG_BASE` is unset, the app falls back to local `data/processed/sashimi/` (dev only).
-- `gh` CLI alternative to creating repos in the browser: `brew install gh && gh auth login`,
-  then `gh repo create <USER>/cardioisomap --public --source=. --push`.
+## Notes
+- Free tier ≈ 1 GB RAM. The ~73 MB of tables (mostly the two MAGNET TPM parquets, ~52 MB) load
+  fine; if memory ever gets tight, downcast/aggregate the MAGNET tables.
+- Rebuild processed tables only if raw inputs change — see the `code/01..07` scripts in `README.md`.
+- The Sashimi render scripts (`03_render_sashimi.R`, `04_rebuild_manifest.py`) and their 1.3 GB of
+  PNGs remain on disk but are no longer used by the app.

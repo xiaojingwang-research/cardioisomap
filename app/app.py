@@ -9,7 +9,6 @@ NOTE: abundance is derived from per-sample counts.
 from __future__ import annotations
 
 import io
-import os
 from pathlib import Path
 
 import matplotlib
@@ -24,32 +23,8 @@ import streamlit as st
 # --------------------------------------------------------------------------- #
 # Config / constants
 # --------------------------------------------------------------------------- #
-import re
-
 ROOT = Path(__file__).resolve().parents[1]
 PROC = ROOT / "data" / "processed"
-SASHIMI_DIR = PROC / "sashimi"
-
-
-def safe_name(g: str) -> str:
-    """Match the filename sanitisation used by code/03_render_sashimi.R."""
-    return re.sub(r"[^A-Za-z0-9._-]", "_", str(g))
-
-
-def _img_base() -> str:
-    """Base URL for remotely-hosted sashimi PNGs (jsDelivr CDN).
-
-    Set via Streamlit secret `IMG_BASE` (deployed) or env var
-    CARDIOISOMAP_IMG_BASE (local). Empty -> serve local files in data/processed/sashimi.
-    """
-    try:
-        val = st.secrets.get("IMG_BASE", "")
-    except Exception:
-        val = ""
-    return (val or os.environ.get("CARDIOISOMAP_IMG_BASE", "")).rstrip("/")
-
-
-IMG_BASE = _img_base()
 
 SAMPLES = ["sample1311", "sample1518", "sample1532", "sample1535", "sample1561", "sample1662"]
 SAMPLE_PHENO = {
@@ -129,15 +104,6 @@ def load_gencode_exons() -> pd.DataFrame:
 def gene_list() -> list[str]:
     g = pd.read_csv(PROC / "gene_index.csv")
     return sorted(g["gene"].dropna().astype(str).tolist())
-
-
-@st.cache_data(show_spinner=False)
-def available_sashimi() -> set[str]:
-    """Genes that have a rendered coverage/sashimi PNG (from the manifest)."""
-    mf = PROC / "sashimi_manifest.csv"
-    if not mf.exists():
-        return set()
-    return set(pd.read_csv(mf)["gene"].astype(str))
 
 
 # --------------------------------------------------------------------------- #

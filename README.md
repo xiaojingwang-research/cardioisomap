@@ -38,32 +38,21 @@ python3 code/07_build_magnet_known.py   # MAGNET TPM for FSM/ISM via matched ENS
 (`code/03_render_sashimi.R` + `04_rebuild_manifest.py` build the coverage/sashimi PNGs; the
 Sashimi tab has since been removed from the app, so those steps are now optional/legacy.)
 
-## Coverage/sashimi images (hosted on a CDN)
-The ~12,677 per-gene PNGs (~1.3 GB) are **not** in this repo. They live in a separate public
-repo and are served free via **jsDelivr**. The app reads the image URL from a config value:
-
-- Streamlit secret `IMG_BASE`, or
-- env var `CARDIOISOMAP_IMG_BASE`
-
-Example:
-```
-IMG_BASE = "https://cdn.jsdelivr.net/gh/<USER>/cardioisomap-figures@main/sashimi"
-```
-If unset, the app falls back to local files in `data/processed/sashimi/`.
-
 ## Deploy (Streamlit Community Cloud)
-1. Push this repo to GitHub (the 1.3 GB images are git-ignored).
-2. Push the `data/processed/sashimi/` PNGs to a **separate public repo** `cardioisomap-figures`.
-3. On https://share.streamlit.io → New app → this repo, main file `app/app.py`.
-4. App settings → Secrets → set `IMG_BASE` to the jsDelivr URL above.
+Single public repo (~73 MB: app code + processed parquet/CSV tables) — no CDN or secrets.
+1. Push this repo to GitHub (raw data + the legacy sashimi PNGs are git-ignored).
+2. On https://share.streamlit.io → **Create app** → this repo, branch `main`, main file `app/app.py`.
+3. **Deploy.** Live at `https://<name>.streamlit.app`; pushes to `main` auto-redeploy.
+
+See `docs/DEPLOY.md` for details.
 
 ## Layout
 ```
 app/         Streamlit app (app.py) + requirements.txt
-code/        01..04 preprocessing / rendering scripts
+code/        01..07 preprocessing scripts (03/04 = legacy sashimi render)
 data/raw/    original inputs (local only, git-ignored)
-data/processed/  parquet + csv tables (committed) + sashimi/ PNGs (git-ignored)
-docs/        design notes + data dictionary
+data/processed/  parquet + csv tables (committed)
+docs/        design notes, data dictionary, deploy guide
 PROJECT_LOG.md   running project log
 ```
 
